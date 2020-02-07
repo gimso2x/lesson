@@ -19,9 +19,8 @@ main.innerHTML = `
 `;
 let page = main.firstElementChild;
 const url = 'https://my-json-server.typicode.com/it-crafts/lesson/timeline/';
-/* TODO 참조형은 정말 명확하게 특별한 이유가 없다면(선언 먼저하고 나중에 할당 한다든지..) const로 선언해주세요
-일반적으론 얘네들이 재할당될 케이스가 존재하는 것 자체가 바람직하지 못한 로직입니다 */
-const [infoData, timelineList] = await Promise.all([fetchApiData(url), fetchApiData(url, 1)]);
+let p = 1;
+const [infoData, firstTimelineList] = await Promise.all([fetchApiData(url), fetchApiData(url, p++)]);
 const totalPage = infoData.totalPage * 1;
 const profileData = infoData.profile;
 const scaleDown = numstring => {
@@ -96,7 +95,7 @@ const article = page.querySelector('article');
 let grid = article.children[0].firstElementChild;
 let loading = article.children[1].firstElementChild;
 let more = article.children[2].firstElementChild;
-let p = 1;
+let allLoad = article.children[2].children[1];
 
 const divide = function(list, size) {
     const copy = list.slice();
@@ -108,19 +107,8 @@ const divide = function(list, size) {
     }
     return listList;
 };
-// 데이터 더보기 function
-/* COMMENT 로직 커플링을 제거할 수 있도록 addData에 list파라미터 추가하고, 관련로직 수정했습니다
-함수내부에서 함수외부의 뮤터블한 상태를 재할당 및 참조하며 로직이 반복되는 것은 지양해주세요
-상태관리는 페이지 등 정말 필요한 값을 제외하면 최소화되어야 하며, 함수는 순수할 수록 좋습니다 */
-const addData = function(list = []) {
-    console.log('>> p: ', p);
-    console.log('>> totalPage: ', totalPage);
-    // TODO 큰 차이는 없지만, 본문을 먼저 렌더하고 나중에 더보기 버튼을 렌더하는 게 더 바람직할 것 같습니다
-    // FIXME 더보기 버튼을 더 이상 표시하지 않는 케이스엔, 클릭 이벤트리스너를 제거 해주세요
-    // 현재 p가 totalPage보다 적을때 더보기 버튼 표시
-    if(p < totalPage) {
-        more.parentElement.style.display = '';
-    }
+
+const makeList = function(list = []) {
     const listList = divide(list, 3);
     listList.forEach(list => {
         grid.insertAdjacentHTML('beforeend', `
@@ -141,18 +129,58 @@ const addData = function(list = []) {
             `);
         });
     });
-    loading.parentElement.style.display = 'none';
-};
-addData(timelineList);
+}
 
-const clickMore = async function(e) {
-    /* TODO 특정UI show/hide 로직처럼 페어인 로직은 같은 레벨에 있도록 해주세요, 가능하면 같은 함수 안에 있으면 더 좋습니다
-    현재 코드는 전체코드를 전부 확인해보기 전까진 어디어디에 박혀있을 지 예측할 수가 없습니다 */
+// show hide 같은레벨 놓기위한 function 분리
+const beforeStyle = function() {
     more.parentElement.style.display = 'none';
     loading.parentElement.style.display = '';
-    addData(await fetchApiData(url, ++p));
 }
-// 필요한 시점에 추가한 이벤트리스너 제거
+
+// show hide 같은레벨 놓기위한 function 분리
+const afterStyle = function() {
+    // 현재 p가 totalPage보다 적을때 더보기 버튼 표시
+    if(p <= totalPage) {
+        more.parentElement.style.display = '';
+    } else {
+        more.removeEventListener('click', clickMore);
+        allLoad.removeEventListener('click', allMore);
+    }
+    loading.parentElement.style.display = 'none';
+}
+
+// 최초 리스트 로드시
+const firstTimelineLoad = function() {
+    makeList(firstTimelineList);
+    afterStyle();
+}
+
+// 더보기 버튼 로드시
+const nextTimelineLoad = async function() {
+    beforeStyle();
+    makeList(await fetchApiData(url, p++));
+    afterStyle();
+}
+
+const allTimeLineLoad = async function() {
+    beforeStyle();
+    let temporary = [];
+    while (p <= totalPage) {
+        temporary.push(...await fetchApiData(url, p++));
+    }
+    makeList(temporary);
+    afterStyle();
+}
+
+const clickMore = function(e) {
+    nextTimelineLoad();
+}
+
+const allMore = function(e) {
+    allTimeLineLoad();
+}
+
+firstTimelineLoad();
 more.addEventListener('click', clickMore);
-// more.removeEventListener('click', clickMore);
+allLoad.addEventListener('click', allMore);
 })();
