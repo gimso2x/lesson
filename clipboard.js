@@ -4,6 +4,34 @@
  * All contents cannot be copied without permission.
  */
 (async () => {
+//makeSort 
+Array.prototype.makeSort = function (compareFunc) {
+    let result = this;
+    for (let i = 0; i < result.length; i++) {
+        for (let j = i + 1; j < result.length; j++) {
+            // compareFunc 있을시에 function / 동작 없을시 기본 배열 비교
+            
+            if (compareFunc ? compareFunc(result[j],result[i]) < 0 : result[j] > result[i]) {
+                let temp = result[i];
+                result[i] = result[j];
+                result[j] = temp;
+            }
+        }
+    }
+    return result;
+}
+
+//makeFilter
+Array.prototype.makeFilter = function (compareFunc) {
+    let result = this;
+    let result2 = [];
+    for (let i = 0; i < result.length; i++) {
+        if(compareFunc(result[i])) {
+            result2.push(result[i]);
+        }
+    }
+    return result2;
+}
 
 const common = (() => {
     const IMG_PATH = 'https://it-crafts.github.io/lesson/img';
@@ -174,10 +202,13 @@ const grid = await (async ($parent, url) => {
     const filter = () => {
         $el.lastElementChild.firstElementChild.innerHTML = '';
         // filter 계산식
-        const filterList = timelineList.filter(a => {
+        // const filterList = timelineList.filter(a => {
+        //     return (a.name + a.text).includes($searchInput.value);
+        // });
+        // filter 직접 구현
+        const filterList = timelineList.makeFilter(a => {
             return (a.name + a.text).includes($searchInput.value);
         });
-        
         if(filterList.length) {
             divide(filterList, ITEM_PER_ROW)
                 .forEach(list => {
@@ -194,10 +225,14 @@ const grid = await (async ($parent, url) => {
         if(popular) {
             // 인기순 버튼 클릭시
             const popularCal = (a, b) => a + (b * 2); 
-            timelineList.sort((a, b) => popularCal(a.clipCount, a.commentCount) - popularCal(b.clipCount, b.commentCount));
+            // timelineList.sort((a, b) => popularCal(a.clipCount, a.commentCount) - popularCal(b.clipCount, b.commentCount));
+            // sort 직접 구현
+            timelineList.makeSort((a, b) => popularCal(a.clipCount, a.commentCount) - popularCal(b.clipCount, b.commentCount));
         } else {
             // 최신순 버튼 클릭시
-            timelineList.sort((a, b) =>  Date.parse(a.timestamp) - Date.parse(b.timestamp));
+            // timelineList.sort((a, b) =>  Date.parse(a.timestamp) - Date.parse(b.timestamp));
+            // sort 직접 구현
+            timelineList.makeSort((a, b) =>  Date.parse(a.timestamp) - Date.parse(b.timestamp));
         }
         divide(timelineList, ITEM_PER_ROW)
             .forEach(list => {
