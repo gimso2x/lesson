@@ -147,6 +147,10 @@ const grid = await (async ($parent, url) => {
     const create = () => {
         render();
         $el = $parent.lastElementChild;
+        // 최신순, 인기순, 서치버튼 버튼요소 지정
+        $latestBtn = $el.firstElementChild.firstElementChild;
+        $popularBtn = $el.firstElementChild.children[1];
+        $searchInput = $el.firstElementChild.lastElementChild.querySelector('input[type="search"]');
     }
 
     const divide = (list, size) => {
@@ -168,17 +172,37 @@ const grid = await (async ($parent, url) => {
     const listList = divide(timelineList, ITEM_PER_ROW);
 
     const filter = () => {
-        // TODO 검색창 input에 key이벤트 발생시 검색로직 수행
         $el.lastElementChild.firstElementChild.innerHTML = '';
-        divide(timelineList.filter(/* TODO */), ITEM_PER_ROW)
-            .forEach(list => {/* TODO */});
+        // filter 계산식
+        const filterList = timelineList.filter(a => {
+            return (a.name + a.text).includes($searchInput.value);
+        });
+        
+        if(filterList.length) {
+            divide(filterList, ITEM_PER_ROW)
+                .forEach(list => {
+                        sliceGridItems(list);
+                    
+                });
+        }
     }
 
-    const sort = () => {
-        // TODO 최신순/인기순 클릭시 해당 정렬로직 수행
+    const sort = (popular = '') => {
         $el.lastElementChild.firstElementChild.innerHTML = '';
-        divide(timelineList.sort(/* TODO */), ITEM_PER_ROW)
-            .forEach(list => {/* TODO */});
+        // 버튼 클릭시 input value 초기화
+        $searchInput.value = '';
+        if(popular) {
+            // 인기순 버튼 클릭시
+            const popularCal = (a, b) => a + (b * 2); 
+            timelineList.sort((a, b) => popularCal(a.clipCount, a.commentCount) - popularCal(b.clipCount, b.commentCount));
+        } else {
+            // 최신순 버튼 클릭시
+            timelineList.sort((a, b) =>  Date.parse(a.timestamp) - Date.parse(b.timestamp));
+        }
+        divide(timelineList, ITEM_PER_ROW)
+            .forEach(list => {
+                sliceGridItems(list);
+            });
     }
 
     const render = () => {
@@ -216,11 +240,26 @@ const grid = await (async ($parent, url) => {
         `);
     }
 
+    // bindEvent 정의
+    const bindEvent = () => {
+        $latestBtn.addEventListener('click', () => {
+            sort();
+        });
+        $popularBtn.addEventListener('click', () => {
+            sort("popular");
+        });
+        $searchInput.addEventListener('keyup', () => {
+            filter();
+        });
+    }
+
     create();
+    bindEvent();
     return { $el, listList }
 })(timelineContent.$el.firstElementChild, timeline.url);
 
-grid.listList.forEach(list => {
+// sort나 filter시에 리스트 재정렬위해 function으로 묶음
+const sliceGridItems = (list) => {
     const gridItem = (($parent, list) => {
         let $el;
 
@@ -256,6 +295,11 @@ grid.listList.forEach(list => {
         create();
         return { $el }
     })(grid.$el.lastElementChild.firstElementChild, list);
+}
+
+//최초 로드시
+grid.listList.forEach(list => {
+    sliceGridItems(list);
 });
 
 })();
