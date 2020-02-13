@@ -218,22 +218,23 @@ const grid = await (async ($parent, url) => {
         }
     }
 
-    const sort = (popular = '') => {
+    /* TODO 적절한 패턴 적용하여, 보다 견고한 로직으로 리팩토링 했습니다 (수정완료)
+    플래그를 통한 로직분기는, 예외적인 케이스에 한하여 일부로직에만 사용해주세요
+    전체로직, 또는 주요한 로직 덩어리를 분기하는 로직은 바람직하지 않습니다 */
+    const comparator = (() => {
+        // BUG a가 number로 캐스팅되지 않아서, 추가 했습니다 (인기순이 정상적으로 정렬되지 않고 있었습니다)
+        const popularCal = (a, b) => a * 1 + b * 2;
+        return {
+            // BUG 순서가 반대라서 뒤집었습니다 (a-b를 b-a로 바꿨습니다)
+            popular: (a, b) => popularCal(b.clipCount, b.commentCount) - popularCal(a.clipCount, a.commentCount),
+            latest: (a, b) =>  Date.parse(b.timestamp) - Date.parse(a.timestamp),
+        }
+    })();
+    const sort = (type) => {
         $el.lastElementChild.firstElementChild.innerHTML = '';
         // 버튼 클릭시 input value 초기화
         $searchInput.value = '';
-        if(popular) {
-            // 인기순 버튼 클릭시
-            const popularCal = (a, b) => a + (b * 2); 
-            // timelineList.sort((a, b) => popularCal(a.clipCount, a.commentCount) - popularCal(b.clipCount, b.commentCount));
-            // sort 직접 구현
-            timelineList.makeSort((a, b) => popularCal(a.clipCount, a.commentCount) - popularCal(b.clipCount, b.commentCount));
-        } else {
-            // 최신순 버튼 클릭시
-            // timelineList.sort((a, b) =>  Date.parse(a.timestamp) - Date.parse(b.timestamp));
-            // sort 직접 구현
-            timelineList.makeSort((a, b) =>  Date.parse(a.timestamp) - Date.parse(b.timestamp));
-        }
+        timelineList.makeSort(comparator[type]);
         divide(timelineList, ITEM_PER_ROW)
             .forEach(list => {
                 sliceGridItems(list);
@@ -277,8 +278,10 @@ const grid = await (async ($parent, url) => {
 
     // bindEvent 정의
     const bindEvent = () => {
+        /* TODO 동일한 종류의 여러 엘리먼트에 각각 동일한 이벤트가 걸릴 경우,
+        성능을 위해 부모 엘리먼트에 이벤트를 위임하는 구조도 고려 해보세요 (부모에 이벤트 추가) */
         $latestBtn.addEventListener('click', () => {
-            sort();
+            sort("latest");
         });
         $popularBtn.addEventListener('click', () => {
             sort("popular");
