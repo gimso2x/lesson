@@ -218,14 +218,9 @@ const grid = await (async ($parent, url) => {
         }
     }
 
-    /* TODO 적절한 패턴 적용하여, 보다 견고한 로직으로 리팩토링 했습니다 (수정완료)
-    플래그를 통한 로직분기는, 예외적인 케이스에 한하여 일부로직에만 사용해주세요
-    전체로직, 또는 주요한 로직 덩어리를 분기하는 로직은 바람직하지 않습니다 */
     const comparator = (() => {
-        // BUG a가 number로 캐스팅되지 않아서, 추가 했습니다 (인기순이 정상적으로 정렬되지 않고 있었습니다)
         const popularCal = (a, b) => a * 1 + b * 2;
         return {
-            // BUG 순서가 반대라서 뒤집었습니다 (a-b를 b-a로 바꿨습니다)
             popular: (a, b) => popularCal(b.clipCount, b.commentCount) - popularCal(a.clipCount, a.commentCount),
             latest: (a, b) =>  Date.parse(b.timestamp) - Date.parse(a.timestamp),
         }
@@ -245,8 +240,8 @@ const grid = await (async ($parent, url) => {
         $parent.insertAdjacentHTML('beforeend', `
             <article class="FyNDV">
                 <div class="Igw0E rBNOH YBx95 ybXk5 _4EzTm soMvl JI_ht bkEs3 DhRcB">
-                    <button class="sqdOP L3NKy y3zKF JI_ht" type="button">최신순</button>
-                    <button class="sqdOP L3NKy y3zKF JI_ht" type="button">인기순</button>
+                    <button class="sqdOP L3NKy y3zKF JI_ht" type="button" data-kind="latest">최신순</button>
+                    <button class="sqdOP L3NKy y3zKF JI_ht" type="button" data-kind="popular">인기순</button>
                     <h1 class="K3Sf1">
                         <div class="Igw0E rBNOH eGOV_ ybXk5 _4EzTm">
                             <div class="Igw0E IwRSH eGOV_ vwCYk">
@@ -278,17 +273,19 @@ const grid = await (async ($parent, url) => {
 
     // bindEvent 정의
     const bindEvent = () => {
-        /* TODO 동일한 종류의 여러 엘리먼트에 각각 동일한 이벤트가 걸릴 경우,
-        성능을 위해 부모 엘리먼트에 이벤트를 위임하는 구조도 고려 해보세요 (부모에 이벤트 추가) */
-        $latestBtn.addEventListener('click', () => {
-            sort("latest");
-        });
-        $popularBtn.addEventListener('click', () => {
-            sort("popular");
-        });
+        $el.firstElementChild.addEventListener('click', click);
+        
         $searchInput.addEventListener('keyup', () => {
             filter();
         });
+    }
+
+    const click = (e) => {
+        const kind = e.target.dataset.kind; 
+        if(!kind) {
+            return;
+        }
+        sort(kind);
     }
 
     create();
