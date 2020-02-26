@@ -183,20 +183,51 @@ const Item = (() => {
         this.$left = this.$el.querySelector('.js-left');
         this.$right = this.$el.querySelector('.js-right');
         this.$pagebar = this.$el.querySelector('.js-pagebar');
+        this.pageNum = 1;
+        this.$resize;
     }
     const proto = Item.prototype;
 
     proto.create = function() {
+        this.bindEvent();
+        this.click();
+        this.$resize = this.resize.bind(this);
+        window.addEventListener('resize', this.$resize);
     }
     proto.destroy = function() {
         this.$parent.removeChild(this.$el);
     }
 
     proto.click = function() {
+        this.$left.addEventListener('click', () => {
+            this.pageNum--;
+            this.bindEvent();
+        });
+        this.$right.addEventListener('click', () => {
+            this.pageNum++;
+            this.bindEvent();
+        });
+        
+    }
+    proto.bindEvent = function() {
         // TODO $left/$right 화살표 숨김/표시 (필요한 로직 추가)
+        if(this.pageNum === 1) {
+            this.$left.style.display = "none";
+        } else if(this.pageNum === this.$sliderList.childElementCount) {
+            this.$right.style.display = "none";
+        } else {
+            this.$left.style.display = "block";
+            this.$right.style.display = "block";
+        }
         // TODO this.$slider.style.transform = `translateX(${이동좌표}px)`;
+        this.$slider.style.transform = `translateX(-${innerWidth * (this.pageNum - 1)}px)`;
         // TODO $pagebar 이미지에 대응되는 엘리먼트로 XCodT 클래스 이동 (on 처리)
-        // TODO 가로사이즈는 innerWidth로 직접 잡거나, innerWidth를 캐싱해두고 사용
+        for(var i=0;i < this.$pagebar.childElementCount;i++) {
+            this.$pagebar.children[i].classList.remove('XCodT');
+            if ( i == (this.pageNum - 1)) {
+                this.$pagebar.children[i].classList.add('XCodT');
+            }
+        }
     }
     proto.resize = function() {
         // HACK 현재 데이터바인딩을 지원하지 않으므로, 리스트 모든 엘리먼트 지우고 새로 렌더링
@@ -207,7 +238,7 @@ const Item = (() => {
             ${this.htmlSliderImgs(this._dataList)}
         `);
         // TODO 리프레시 전 슬라이드 이미지 다시 노출 (좌표보정)
-        // TODO 가로사이즈는 innerWidth로 직접 잡거나, innerWidth를 캐싱해두고 사용
+        this.bindEvent();
     }
 
     proto.htmlSliderImgs = function(imgDataList) {
