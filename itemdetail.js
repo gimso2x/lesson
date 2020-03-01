@@ -183,7 +183,8 @@ const Item = (() => {
         this.$left = this.$el.querySelector('.js-left');
         this.$right = this.$el.querySelector('.js-right');
         this.$pagebar = this.$el.querySelector('.js-pagebar');
-        this.pageNum = 1;
+        // COMMENT 로직 상으로 인덱스가 조금 더 깔끔해지지 않을까 싶습니다
+        this.sliderIndex = 0;
         this.$resize;
     }
     const proto = Item.prototype;
@@ -195,49 +196,69 @@ const Item = (() => {
         window.addEventListener('resize', this.$resize);
     }
     proto.destroy = function() {
+        /* BUG destroy 시에 this.$resize 이벤트리스너가 제거되지 않아 메모리 누수가 쌓이고 있습니다
+        root.destroy() 후 리사이즈 이벤트 발생시켜 보시면, 전부 살아있는 것 확인하실 수 있습니다
+        컴포넌트에서 추가되는 모든 추가로직은 대응되는 제거로직을 작성 해주시고,
+        destroy에서는 추가된 모든 것들을 제거하는 로직을 붙여주세요 */
         this.$parent.removeChild(this.$el);
     }
 
     proto.click = function() {
+        /* FIXME this 사용을 위해 화살표함수로 익명콜백을 사용하신 것 같습니다
+        아래 이벤트는 어차피 컴포넌트에서 생성한 DOM 엘리먼트에 직접 걸리는 이벤트이고
+        destroy와 함께 DOM트리에서 제거하므로, 눈에 보이는 문제는 없어 보입니다
+        하지만 실제로 리스너가 제거되지 않기 때문에, SPA 환경에서 메모리누수가 쌓일 수 있습니다
+        이벤트리스너는 가능하면 안전하게 명시적으로 해제하는 편이 좋습니다
+        관련해서 이 글 읽어보시면 도움될 것 같습니다
+        https://ui.toast.com/weekly-pick/ko_20160826/
+        https://v8.dev/blog/tracing-js-dom */
         this.$left.addEventListener('click', () => {
-            this.pageNum--;
+            this.sliderIndex--;
             this.bindEvent();
         });
         this.$right.addEventListener('click', () => {
-            this.pageNum++;
+            this.sliderIndex++;
             this.bindEvent();
         });
-        
     }
+    /* TODO 실제 이벤트바인딩은 click에서 하고 있으므로, 아래 메소드는 비즈니스 로직에 해당합니다
+    조금 더 적절한 이름으로 변경되면 더 좋을 것 같습니다 (필요시 메소드 분리도 함께 진행 해주세요) */
     proto.bindEvent = function() {
-        // TODO $left/$right 화살표 숨김/표시 (필요한 로직 추가)
-        if(this.pageNum === 1) {
+        if(this.sliderIndex === 0) {
             this.$left.style.display = "none";
-        } else if(this.pageNum === this.$sliderList.childElementCount) {
+        } else if(this.sliderIndex === this.$sliderList.childElementCount - 1) {
             this.$right.style.display = "none";
         } else {
+            /* FIXME CSS에 종속적인 로직이며, 기본 스타일이 block이 아니게 되면 UI깨짐 가능성이 있습니다
+            명시적으로 스타일제거 API 사용 또는 엘리먼트.style.스타일 = ''로 해제하면 깔끔할 것 같습니다 */
             this.$left.style.display = "block";
             this.$right.style.display = "block";
         }
-        // TODO this.$slider.style.transform = `translateX(${이동좌표}px)`;
-        this.$slider.style.transform = `translateX(-${innerWidth * (this.pageNum - 1)}px)`;
-        // TODO $pagebar 이미지에 대응되는 엘리먼트로 XCodT 클래스 이동 (on 처리)
-        for(var i=0;i < this.$pagebar.childElementCount;i++) {
-            this.$pagebar.children[i].classList.remove('XCodT');
-            if ( i == (this.pageNum - 1)) {
-                this.$pagebar.children[i].classList.add('XCodT');
-            }
-        }
+        this.$slider.style.transform = `translateX(-${innerWidth * this.sliderIndex}px)`;
+        /* TODO 반복문+조건문+인덱스 조합은 로직 가독성이 떨어지며, 수정시 버그유발 가능성이 높습니다
+        공통로직이나 공통 컴포넌트에서는 로우한 알고리즘 사용이 더 바람직할 수 있으나
+        서비스개발 시에는 오버헤드가 크지 않으므로 유지보수성이 좋은 로직이 서비스품질에 유리할 수 있습니다
+        기존로직이 틀린것은 아니니, 새로 짜드린 로직도 정답은 아니니 참고만 해주세요 */
+        const onClass = 'XCodT';
+        const current = this.$pagebar.children[this.sliderIndex];
+        [...this.$pagebar.children]
+            .filter(e => e !== current) // 필요시 해당라인은 제거해도 관계없음
+            .forEach(e => e.classList.remove(onClass));
+        current.classList.add(onClass);
+        // for(var i=0;i < this.$pagebar.childElementCount;i++) {
+        //     this.$pagebar.children[i].classList.remove('XCodT');
+        //     if ( i == (this.sliderIndex)) {
+        //         this.$pagebar.children[i].classList.add('XCodT');
+        //     }
+        // }
     }
     proto.resize = function() {
-        // HACK 현재 데이터바인딩을 지원하지 않으므로, 리스트 모든 엘리먼트 지우고 새로 렌더링
         while(this.$sliderList.firstChild) {
             this.$sliderList.removeChild(this.$sliderList.firstChild);
         }
         this.$sliderList.insertAdjacentHTML('beforeend', `
             ${this.htmlSliderImgs(this._dataList)}
         `);
-        // TODO 리프레시 전 슬라이드 이미지 다시 노출 (좌표보정)
         this.bindEvent();
     }
 
